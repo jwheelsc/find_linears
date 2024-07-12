@@ -32,8 +32,8 @@ from scipy.ndimage import gaussian_filter
 from scipy.ndimage import median_filter
 
 # %% import the the raster files created by another program
-dd_rast = gu.Raster(r'C:\Users\jcrompto\Documents\code\python_scripts\jupyter_notebooks\remote_sensing\find_linears\saved_mtx\diffDEM_2.tif')
-ddhs_rast = gu.Raster(r'C:\Users\jcrompto\Documents\code\python_scripts\jupyter_notebooks\remote_sensing\find_linears\saved_mtx\diffDEM_hs_2.tif')
+dd_rast = gu.Raster(r'C:\Users\jcrompto\Documents\code\python_scripts\jupyter_notebooks\remote_sensing\find_linears\saved_mtx\diffDEM.tif')
+ddhs_rast = gu.Raster(r'C:\Users\jcrompto\Documents\code\python_scripts\jupyter_notebooks\remote_sensing\find_linears\saved_mtx\diffDEM_hs.tif')
 
 
 # %% plot the raster data being imorted
@@ -48,7 +48,7 @@ bckChipSize = 11    ## this is the size of the chip used to identify the backgro
 halfBkgChip = int(np.floor(bckChipSize/2))
 diffAnomThresh = 11  ## this is how far above the background the center pixel must be to qualify as a starting point
 dmSz = 155          ## the size of the sampling window
-gaussSigma=1.3      ## size of the standard deviation of the gaussian smooting window
+gaussSigma=1.1      ## size of the standard deviation of the gaussian smooting window
 distThresh = 1
 minCrackLength = 10
 
@@ -59,21 +59,21 @@ gH = np.copy(gaussHS[0:dmSz,0:dmSz])
 mean_gH = np.mean(gH)
 
 # %% ensure that there are only unique elements in the matrix
-gH_U, uniq_idx, counts = np.unique(gH, return_index=True, return_inverse=True)
-dims = np.shape(gH)
-xDim = dims[1]
-yDim = dims[0]
-for xi in np.arange(xDim):
-    for yj in np.arange(yDim):
-        zVal = np.copy(gH[yj,xi])
-        inds = np.where(gH==zVal)
-        yval = np.squeeze(inds[0])
-        xval = np.squeeze(inds[1]) 
-        if np.size(yval)>1:
-            print('you found 1')
-            yval = yval[np.multiply(xval!=xi,yval!=yj)]
-            xval = xval[np.multiply(xval!=xi,yval!=yj)]
-            gH[yval,xval]=np.copy(gH[yval,xval])+(np.random.default_rng().integers(low=1,high=9)*0.001)
+# gH_U, uniq_idx, counts = np.unique(gH, return_index=True, return_inverse=True)
+# dims = np.shape(gH)
+# xDim = dims[1]
+# yDim = dims[0]
+# for xi in np.arange(xDim):
+#     for yj in np.arange(yDim):
+#         zVal = np.copy(gH[yj,xi])
+#         inds = np.where(gH==zVal)
+#         yval = np.squeeze(inds[0])
+#         xval = np.squeeze(inds[1]) 
+#         if np.size(yval)>1:
+#             print('you found 1')
+#             yval = yval[np.multiply(xval!=xi,yval!=yj)]
+#             xval = xval[np.multiply(xval!=xi,yval!=yj)]
+#             gH[yval,xval]=np.copy(gH[yval,xval])+(np.random.default_rng().integers(low=1,high=9)*0.001)
 
 
 # %% a chip is created that starts to scan across the window. when the center pixel of the chip is in sufficient contrast (large mean difference to the 
@@ -220,6 +220,11 @@ for j in np.arange(1,dmSz-np.ceil(bckChipSize/2),2,dtype = int): # start the bac
 expandedCrackU = np.unique(crackElements,axis=0)
 expandedCrackU = expandedCrackU[1:]
 
+# %%
+
+#numEL = expandedCrackU
+
+
 # %% in this section of code you are taking all of the lines to 
 ##concatenate lines that are together and separating each line into 
 ##a list so that it becomes its own crack. doing this by finding the 
@@ -271,16 +276,18 @@ for c_i in np.arange(numEl-1):
         stillInY = np.multiply(beenCounted,expandedCrackU[:,0])
         n_j = np.where(stillInY==np.min(stillInY[stillInY!=0]))
         inCount+=1
+        print('you renturned back here')
         # if inCount == 4:
         #     print('inCount =4')
         #     #sys.exit()
         if np.size(n_j)>1:
             print('houston we have a problem')
+            n_j = np.squeeze(n_j[0])
             # sys.exit()
-            a1 = (n_j[0])
-            n_j = []
-            n_j = a1
-            print('n_j = ',n_j)
+            # a1 = (n_j[0])
+            # n_j = []
+            # n_j = a1
+            # print('n_j = ',n_j)
 
 innerCrackList = innerCrackList[1:,:]
 crackList.append(innerCrackList)

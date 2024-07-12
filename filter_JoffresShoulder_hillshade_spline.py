@@ -13,6 +13,15 @@ import rasterio as rio
 import xdem
 from scipy.interpolate import RegularGridInterpolator
 
+
+from skimage.morphology import erosion, dilation, opening, closing, white_tophat  
+from skimage.morphology import black_tophat, skeletonize, convex_hull_image 
+from skimage.morphology import disk, square, diamond
+from skimage import filters, feature, exposure, segmentation
+from skimage.filters import threshold_otsu
+from skimage.transform import hough_line, hough_line_peaks
+from skimage.feature import canny
+from skimage.draw import line as draw_line
 # %%
 filename = r'C:\Users\jcrompto\Documents\remote_sensing\lidar\joffre\LiDAR Raster\20_4031_01_1m_DTM_CSRS_z10_ellips.tif'
 rast = gu.Raster(filename)
@@ -21,7 +30,8 @@ rast = gu.Raster(filename)
 
 
 #llx = 536802; lly = 5578395; urx = 537774; ury = 5579407;
-llx = 537000; lly = 5579000; urx = 537200; ury = 5579200;
+#llx = 537000; lly = 5579000; urx = 537200; ury = 5579200;
+llx = 537000-2000; lly = 5579000-2000; urx = 537200-2000; ury = 5579200-2000;
 rast.crop((llx,lly,urx,ury),inplace = True)
 rast.show(ax = "new",cmap = "Greys_r")
 
@@ -85,6 +95,7 @@ ax.plot_wireframe(np.rot90(xgds),np.rot90(ygds),interpDat.values, rstride=3, cst
 
 intCubic = np.fliplr(np.rot90(int1m,-1))
 diffDEM = rastData-intCubic
+hs,slope = hillshade(diffDEM,270,180)
 
 
 # In[215]:
@@ -101,114 +112,59 @@ ax[3].imshow(diffDEM,cmap = 'jet',extent = [0,xs,0,ys])
 ax[3].set_title('diff DEM')
 
 
-# In[204]:
+# # In[204]:
 
 
-dVals = diffDEM.ravel()
-dBin = 0.25
-binL = np.arange(-8,9,dBin)
-binC = binL[0:-1]+(dBin/2)
-pdf,indx = np.histogram(dVals[~np.isnan(dVals)],bins=binL)
-plt.plot(binC,pdf)
+# dVals = diffDEM.ravel()
+# dBin = 0.25
+# binL = np.arange(-8,9,dBin)
+# binC = binL[0:-1]+(dBin/2)
+# pdf,indx = np.histogram(dVals[~np.isnan(dVals)],bins=binL)
+# plt.plot(binC,pdf)
 
 
 # In[221]:
 
 
-hs_rescale = exposure.rescale_intensity(hs, in_range=(p2, p98))
+# hs_rescale = exposure.rescale_intensity(hs, in_range=(p2, p98))
 
 
 # In[216]:
 
 
-hs,slope = hillshade(diffDEM,270,180)
-p2, p98 = np.percentile(hs, (2, 90))
-hs_rescale = exposure.rescale_intensity(hs, in_range=(p2, p98))
-thresh = threshold_otsu(hs_rescale)
-hs_thresh = hs_rescale > thresh
-hs_rescale[hsThresh] = np.mean(hs_rescale.ravel())
-hs_rescale[hsThresh] = 1
+# hs,slope = hillshade(diffDEM,270,180)
+# p2, p98 = np.percentile(hs, (2, 90))
+# hs_rescale = exposure.rescale_intensity(hs, in_range=(p2, p98))
+# thresh = threshold_otsu(hs_rescale)
+# hs_thresh = hs_rescale > thresh
+# hs_rescale[hsThresh] = np.mean(hs_rescale.ravel())
+# hs_rescale[hsThresh] = 1
 
-fig, (ax) = plt.subplots(2,2,figsize=(14,14))
-ax[0,0].imshow(hs,cmap = 'Grays')
+# fig, (ax) = plt.subplots(2,2,figsize=(14,14))
+# ax[0,0].imshow(hs,cmap = 'Grays')
 #ax[0,0].plot(hs[200,:] + hs[200,:],alpha=0.5,linewidth=0.8,color = 'red')
 #dat1 = diffDEM[200,:]*20
 #dat1 = dat1[~np.isnan(dat1)]
 #ax[0,0].plot(dat1 + (200-np.mean(dat1)),alpha=0.5,linewidth=0.8,color = 'blue')
-ax[0,0].set_title('hs')
-ax[0,1].imshow(hs_rescale,cmap = 'Grays')
-ax[0,1].plot(hs_rescale[200,:]+200,alpha=1)
-ax[0,1].set_title('hs stretch')
-ax[1,0].imshow(hs_thresh,cmap = 'binary')
-ax[1,0].set_title('hs_thresh')
-ax[1,1].imshow(hs_rescale,cmap = 'binary')
-ax[1,1].set_title('hs rescale')
+# ax[0,0].set_title('hs')
+# ax[0,1].imshow(hs_rescale,cmap = 'Grays')
+# ax[0,1].plot(hs_rescale[200,:]+200,alpha=1)
+# ax[0,1].set_title('hs stretch')
+# ax[1,0].imshow(hs_thresh,cmap = 'binary')
+# ax[1,0].set_title('hs_thresh')
+# ax[1,1].imshow(hs_rescale,cmap = 'binary')
+# ax[1,1].set_title('hs rescale')
 
 
 # In[222]:
 
 
 dd_rast = rast.copy(new_array=diffDEM)
-dd_rast.save(r'C:\Users\jcrompto\Documents\code\python_scripts\jupyter_notebooks\remote_sensing\find_linears\saved_mtx\diffDEM.tif')
-
-
-# In[223]:
+dd_rast.save(r'C:\Users\jcrompto\Documents\code\python_scripts\jupyter_notebooks\remote_sensing\find_linears\saved_mtx\diffDEM_2.tif')
 
 
 ddhs_rast = rast.copy(new_array=hs)
-ddhs_rast.save(r'C:\Users\jcrompto\Documents\code\python_scripts\jupyter_notebooks\remote_sensing\find_linears\saved_mtx\diffDEM_hs.tif')
-
-
-# In[175]:
-
-
-fig,ax = plt.subplots(1,1,figsize=(10,10))
-dat1 = diffDEM[200,:]
-dat1 = dat1[~np.isnan(dat1)]
-dat1N =(dat1-np.min(dat1))/(np.max(dat1)-np.min(dat1))
-dat2 = hs[200,:]
-dat2N =(dat2-np.min(dat2))/(np.max(dat2)-np.min(dat2))
-ax.plot(dat1N)
-ax.plot(dat2N,alpha=0.4,color='red')
-
-
-# In[180]:
-
-
-rastDD = rast.copy(new_array=diffDEM)
-crv = xdem.terrain.curvature(rastDD)
-crv.show(cmap="Greys_r",vmin=-30,vmax=30)
-
-
-# In[182]:
-
-
-plt.plot(crv.data[200,:])
-
-
-# In[153]:
-
-
-hs_sC = feature.canny(hs,sigma=4)
-fig,ax = plt.subplots(1,2,figsize=(10,10))
-ax[0].imshow(hs_sC,cmap='binary')
-
-footprint = disk(4)
-hs_sCo = closing(hs_sC, footprint)
-ax[1].imshow(hs_sCo,cmap='binary')
-
-
-# In[156]:
-
-
-segment = segmentation.watershed(hs_rescale)
-plt.imshow(segment,cmap='Grays')
-
-
-# In[135]:
-
-
-plt.plot(hs[200,:])
+ddhs_rast.save(r'C:\Users\jcrompto\Documents\code\python_scripts\jupyter_notebooks\remote_sensing\find_linears\saved_mtx\diffDEM_hs_2.tif')
 
 
 # In[207]:
