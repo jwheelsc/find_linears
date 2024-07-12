@@ -32,8 +32,8 @@ from scipy.ndimage import gaussian_filter
 from scipy.ndimage import median_filter
 
 # %% import the the raster files created by another program
-dd_rast = gu.Raster(r'C:\Users\jcrompto\Documents\code\python_scripts\jupyter_notebooks\remote_sensing\find_linears\saved_mtx\diffDEM.tif')
-ddhs_rast = gu.Raster(r'C:\Users\jcrompto\Documents\code\python_scripts\jupyter_notebooks\remote_sensing\find_linears\saved_mtx\diffDEM_hs.tif')
+dd_rast = gu.Raster(r'C:\Users\jcrompto\Documents\code\python_scripts\jupyter_notebooks\remote_sensing\find_linears\saved_mtx\diffDEM_2.tif')
+ddhs_rast = gu.Raster(r'C:\Users\jcrompto\Documents\code\python_scripts\jupyter_notebooks\remote_sensing\find_linears\saved_mtx\diffDEM_hs_2.tif')
 
 
 # %% plot the raster data being imorted
@@ -48,7 +48,7 @@ bckChipSize = 11    ## this is the size of the chip used to identify the backgro
 halfBkgChip = int(np.floor(bckChipSize/2))
 diffAnomThresh = 11  ## this is how far above the background the center pixel must be to qualify as a starting point
 dmSz = 155          ## the size of the sampling window
-gaussSigma=1.1      ## size of the standard deviation of the gaussian smooting window
+gaussSigma=1.3      ## size of the standard deviation of the gaussian smooting window
 distThresh = 1
 minCrackLength = 10
 
@@ -57,6 +57,23 @@ gaussHS = gaussian_filter(ddhs, sigma=gaussSigma)
 gH = np.copy(gaussHS[0:dmSz,0:dmSz])
 #gH = np.copy(ddhs[0:dmSz,0:dmSz])
 mean_gH = np.mean(gH)
+
+# %% ensure that there are only unique elements in the matrix
+gH_U, uniq_idx, counts = np.unique(gH, return_index=True, return_inverse=True)
+dims = np.shape(gH)
+xDim = dims[1]
+yDim = dims[0]
+for xi in np.arange(xDim):
+    for yj in np.arange(yDim):
+        zVal = np.copy(gH[yj,xi])
+        inds = np.where(gH==zVal)
+        yval = np.squeeze(inds[0])
+        xval = np.squeeze(inds[1]) 
+        if np.size(yval)>1:
+            print('you found 1')
+            yval = yval[np.multiply(xval!=xi,yval!=yj)]
+            xval = xval[np.multiply(xval!=xi,yval!=yj)]
+            gH[yval,xval]=np.copy(gH[yval,xval])+(np.random.default_rng().integers(low=1,high=9)*0.001)
 
 
 # %% a chip is created that starts to scan across the window. when the center pixel of the chip is in sufficient contrast (large mean difference to the 
@@ -68,7 +85,7 @@ diffMeanM = np.zeros(lenLoop)
 diffMean = 0
 count = 0
 crackElements = np.zeros((1,2))
-
+expandedCrackU = []
 
 for j in np.arange(1,dmSz-np.ceil(bckChipSize/2),2,dtype = int): # start the background chip search 1 in from the boundary so the small chip 
     for i in np.arange(1,dmSz-np.ceil(bckChipSize/2),dtype = int):
@@ -115,13 +132,19 @@ for j in np.arange(1,dmSz-np.ceil(bckChipSize/2),2,dtype = int): # start the bac
             #because the bottom of the crack be way at the bottom of the chip, so you just use the top jalf of the chip
             chip_top  = np.copy(gH[intY_up:yCtr,intX_lf:intX_rt])
         
-                
+            
             zMax = np.max(chip_top)   # find where that chip has a max
             arB = gH==zMax
             ind_1 = np.where(arB)
             #plt.imshow(chip_1,cmap = 'Grays')
             xPos = np.squeeze(ind_1[1]) 
+            # if np.size(xPos)>1:
+            #     xPos = np.copy(xPos[np.multiply(xPos>=intX_lf,xPos<=intX_rt)])
+            #     xPos = xPos[0]
             yPos = np.squeeze(ind_1[0]) 
+            # if np.size(yPos)>1:
+            #     yPos = np.copy(yPos[np.multiply(yPos>=intY_up,yPos<=intY_dn)])
+            #     yPos = yPos[0]
             dCtr = np.sqrt(np.square(crackElements[:,0]-yPos) + np.square(crackElements[:,1]-xPos))
             # make a new 3*3 chip arounf the new max,
             
@@ -145,7 +168,7 @@ for j in np.arange(1,dmSz-np.ceil(bckChipSize/2),2,dtype = int): # start the bac
             k = 1
             gH_cp = np.copy(gH)
             
-            while diffAnom > diffAnomThresh and np.sum(dCtr<distThresh)==0 and (xPos >= halfBcs and  xPos < dmSz - (halfBcs + 1) and yPos < dmSz - (halfBcs + 1)):
+            while diffAnom > diffAnomThresh and np.sum(dCtr<distThresh)==0 and (xPos >= halfBcs and  xPos < dmSz - (halfBcs + 1) and yPos >= halfBcs and yPos < dmSz - (halfBcs + 1)):
                 
                 print('you are starting to find the crack for iteration k =',k)
                 print('the outer loop is at count =',count)
@@ -172,7 +195,10 @@ for j in np.arange(1,dmSz-np.ceil(bckChipSize/2),2,dtype = int): # start the bac
                 print('meanBIG = ', meanBIG)
                 
                 yPos =  np.squeeze(indNext[0])
-                xPos  = np.squeeze(indNext[1]) 
+                xPos  = np.squeeze(indNext[1])
+                # if np.size(xPos)>1:
+                #     xPos = np.copy(xPos[np.multiply(xPos>=intX_lf,xPos<=intX_rt)])
+                #     xPos = xPos[0]
                 #plt.imshow(gH)
                 maxMiddleY = np.vstack((maxMiddleY,yPos))
                 maxMiddleX = np.vstack((maxMiddleX,xPos))
@@ -250,8 +276,11 @@ for c_i in np.arange(numEl-1):
         #     #sys.exit()
         if np.size(n_j)>1:
             print('houston we have a problem')
-            sys.exit()
-            n_j = n_j[0]
+            # sys.exit()
+            a1 = (n_j[0])
+            n_j = []
+            n_j = a1
+            print('n_j = ',n_j)
 
 innerCrackList = innerCrackList[1:,:]
 crackList.append(innerCrackList)
@@ -261,20 +290,20 @@ crackListAve = []
 crackListFit = []
 
 numCracks = len(crackList)
-#for crk in np.arange(numCracks):
-crk = 5
-crack = crackList[crk]
-crack_s = np.sort(crack,axis=0)
-c_x = crack_s[:,1]
-c_y = crack_s[:,0]
-plt.plot(c_x,c_y,'+')
-
-c_xU = np.unique(c_x)
-lx = np.size(c_xU)
-meanY = np.zeros(lx)
-for r in np.arange(lx):
-    elX = np.where(c_x==c_xU[r])
-    meanY[r] = np.mean(c_y[elX]) 
+for crk in np.arange(numCracks):
+    # crk = 5
+    crack = crackList[crk]
+    crack_s = np.sort(crack,axis=0)
+    c_x = crack_s[:,1]
+    c_y = crack_s[:,0]
+    plt.plot(c_x,c_y,'+')
+    
+    c_xU = np.unique(c_x)
+    lx = np.size(c_xU)
+    meanY = np.zeros(lx)
+    for r in np.arange(lx):
+        elX = np.where(c_x==c_xU[r])
+        meanY[r] = np.mean(c_y[elX]) 
 
 crackListAve.append(np.rot90(np.vstack((c_xU,meanY)),3))
 plt.plot(c_xU,meanY,'o')
@@ -289,4 +318,5 @@ plt.plot(c_xU,pFit,'b-')
 crackListFit.append(np.rot90(np.vstack((c_xU,pFit)),3))
 
 #%%
+plt.imshow(gH,cmap = 'Grays')
 plt.plot(expandedCrackU[:,1],expandedCrackU[:,0],'.')
